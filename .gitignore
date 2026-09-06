@@ -206,6 +206,13 @@ tempCodeRunnerFile.py
 # Ruff stuff:
 .ruff_cache/
 
+# Agent Meltdowns reproduction artifacts
+containers/*.sif
+paper-repro/bin/
+paper-repro/codex-*/
+paper-repro/runs/
+paper-repro/slurm-logs/
+
 # PyPI configuration file
 .pypirc
 

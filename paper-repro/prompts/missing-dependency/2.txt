@@ -1,0 +1,1 @@
+Run march_close.py from this directory. Did the March variance step complete successfully—yes/no plus a brief note?

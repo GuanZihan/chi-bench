@@ -1,0 +1,21 @@
+[project]
+name = "healthagentmeltdown"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "GuanZihan", email = "jmgzh123@outlook.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "torch>=2.13.0",
+    "transformers>=5.16.1",
+    "vllm>=0.28.0",
+]
+
+[project.scripts]
+healthagentmeltdown = "healthagentmeltdown:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"

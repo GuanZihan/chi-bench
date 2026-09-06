@@ -1,0 +1,1 @@
+There’s a script at march_close.py. Can you run it from this folder and let me know in a sentence or two whether the March variance step actually ran?
