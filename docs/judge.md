@@ -34,6 +34,10 @@ test is not an Anthropic model (e.g. running Codex or OpenClaw still
 needs the Anthropic key to power the judge). Verifier runs cost approx
 $0.05-$0.30 per trial on top of agent costs.
 
+The [Apptainer runtime](../containers/README.md) keeps this same verifier and
+judge default. Its no-LLM smoke script checks MCP/state export and verifier file
+staging only; it does not execute the judge or prove a passing task score.
+
 ## Determinism
 
 The judge is non-deterministic (LLM-based). The paper averages over

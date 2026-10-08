@@ -67,6 +67,12 @@ that affects users.
 
 Always run Python through `uv` — there is no `pip install -e .` workflow.
 
+On Rivanna, use `containers/README.md` and the Apptainer scripts, not Docker.
+Keep one trial per node and do not kill unrelated port listeners. **Why:** this
+SIF runtime shares host networking and chi-bench uses fixed MCP ports; Slurm
+allocations, not Harbor's per-task limits, bound resources. PDF repairs can run
+inside the SIF to use its Chromium libraries instead of the host installation.
+
 ```bash
 # Install (one-time)
 uv sync --extra dev

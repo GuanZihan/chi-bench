@@ -38,15 +38,23 @@
 > Flag-by-flag CLI reference: [`docs/cli.md`](cli.md).
 
 1. `cb experiment run -f <config>` shells out to Harbor.
-2. Harbor spawns one container per trial via `ChiBenchDockerEnvironment` (or `ChiBenchModalEnvironment` for `-e modal`).
+2. Harbor spawns one container per trial via `ChiBenchDockerEnvironment`, `ChiBenchModalEnvironment`, or `ChiBenchApptainerEnvironment`.
 3. The container entrypoint:
-   - reads `CHI_BENCH_TASK_ID`, wires `/opt/chi-bench/tasks/<task_id>/fixtures` → `/fixtures`;
+   - reads `CHI_BENCH_TASK_ID` and exports the task-specific `CHI_BENCH_FIXTURES_DIR` (the shared entrypoint does not expose a `/fixtures` alias to the agent);
    - starts the unified server (HTTP + 3 MCP threads);
    - waits for all four endpoints to accept traffic;
    - exec's the agent harness's CLI.
 4. Agent harness runs the agent against the MCP tools.
 5. After the agent stops (success / timeout / abstain), Harbor invokes the verifier in the same container.
 6. Verifier writes `verifier/scorecard.json` and `verifier/verdicts.json`; Harbor produces `result.json`.
+
+The [Apptainer backend](../containers/README.md) uses a shared SIF and per-trial
+workspace/state/raw copies. Only the current task fixtures are staged, with
+read-only task/world mounts. It creates the legacy `/fixtures` alias when the
+verifier's `/tests` directory is uploaded. Services bind to localhost and fixed
+ports, so trials are serialized per node. On teardown it stops its own process
+group and removes its private runtime, retaining logs and the SIF. Slurm supplies
+the resource limit; this backend does not implement per-task cgroup limits.
 
 When the payer confirms failed member eligibility, processing stops at intake.
 `determination.finalize` can use the completed intake record to set the existing

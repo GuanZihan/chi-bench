@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 
 MODAL_ENVIRONMENT_IMPORT_PATH = "chi_bench.experiment.modal_env:ChiBenchModalEnvironment"
 DOCKER_ENVIRONMENT_IMPORT_PATH = "chi_bench.experiment.docker_env:ChiBenchDockerEnvironment"
+APPTAINER_ENVIRONMENT_IMPORT_PATH = (
+    "chi_bench.experiment.apptainer_env:ChiBenchApptainerEnvironment"
+)
 
 # IN_TREE_AGENT_IMPORT_PATHS (imported above) is the single source of truth
 # for harness names dispatched via Harbor's --agent-import-path. Lives in
@@ -299,7 +302,7 @@ def run_experiment(
             or modal_force_build is not None
         )
         if modal_flags_set:
-            logger.warning("Modal-specific flags set but -e docker is active; ignoring.")
+            logger.warning("Modal-specific flags set outside Modal; ignoring.")
 
     _load_env(cfg.env_file)
 
@@ -307,6 +310,12 @@ def run_experiment(
     if cfg.environment == "modal":
         _modal_preflight(cfg.modal.profile)
         dataset_ctx = _prepare_modal_dataset(cfg.dataset)
+    elif cfg.environment == "apptainer":
+        from chi_bench.experiment.apptainer_env import prepare_dataset
+
+        if cfg.concurrency != 1:
+            raise ValueError("Apptainer currently requires concurrency: 1 (fixed MCP ports).")
+        dataset_ctx = nullcontext(prepare_dataset(cfg.dataset, cfg.apptainer.data_dir))
     else:
         dataset_ctx = nullcontext(cfg.dataset)
 
@@ -509,6 +518,17 @@ def _build_harbor_command(
         # Local single-image backend: pin the harbor environment to the
         # docker shim so Harbor knows which class to instantiate per trial.
         cmd += ["--environment-import-path", DOCKER_ENVIRONMENT_IMPORT_PATH]
+    elif cfg.environment == "apptainer":
+        if cfg.concurrency != 1:
+            raise ValueError("Apptainer currently requires concurrency: 1 (fixed MCP ports).")
+        cmd += ["--environment-import-path", APPTAINER_ENVIRONMENT_IMPORT_PATH]
+        # Resolve paths before Harbor launches a trial from a staged task directory.
+        for key, value in cfg.apptainer.model_dump().items():
+            if value is None:
+                continue
+            if key in {"image", "data_dir", "runtime_root"}:
+                value = str(Path(value).expanduser().resolve())
+            cmd += ["--environment-kwarg", f"{key}={value}"]
     elif cfg.environment == "modal":
         # Use ChiBenchModalEnvironment so Modal builds our sandbox image
         # from docker/Dockerfile.modal with repo-root context (no registry

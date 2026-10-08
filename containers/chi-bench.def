@@ -1,0 +1,72 @@
+Bootstrap: docker
+From: python:3.12-slim-bookworm
+
+%labels
+    org.opencontainers.image.title chi-bench Apptainer runtime
+    org.opencontainers.image.description Shared dependencies; task data is staged per trial
+
+%files
+    pyproject.toml /opt/chi-bench-src/pyproject.toml
+    uv.lock /opt/chi-bench-src/uv.lock
+    README.md /opt/chi-bench-src/README.md
+    src /opt/chi-bench-src/src
+    docker/shims/healthverse /opt/healthverse-shim/healthverse
+    docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+
+%post
+    set -eu
+    # Install the same runtime tools as Docker, plus Harbor's terminal utilities.
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends ca-certificates curl git tini bash \
+        python3 python3-venv util-linux tmux asciinema file ripgrep
+    # This pinned Claude Code package declares Node >=22.
+    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    apt-get install -y --no-install-recommends nodejs
+    npm install -g @anthropic-ai/claude-code@2.1.216 @openai/codex@0.145.0
+    # Keep a fallback judge binary if an agent installer replaces the npm link.
+    cp -L /usr/bin/claude /usr/bin/claude.real
+    printf '%s\n' '#!/bin/sh' \
+        'for p in "$HOME/.local/bin/claude" /home/agent/.local/bin/claude /usr/bin/claude.real; do' \
+        '  [ -x "$p" ] && exec "$p" "$@"' 'done' 'exit 127' > /usr/local/bin/claude
+    chmod +x /usr/local/bin/claude /usr/local/bin/entrypoint.sh
+    # Keep the venv outside /workspace so a private workspace can be mounted over it.
+    python -m pip install --no-cache-dir uv
+    cd /opt/chi-bench-src
+    export UV_PROJECT_ENVIRONMENT=/opt/chi-bench-venv
+    export UV_LINK_MODE=copy
+    uv sync --frozen --no-dev --python /usr/local/bin/python
+    cp -r /opt/healthverse-shim/healthverse /opt/chi-bench-venv/lib/python3.12/site-packages/
+    export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+    /opt/chi-bench-venv/bin/playwright install --with-deps chromium
+    chmod -R a+rX /opt/playwright
+    # Precreate bind points; the image never contains the gated handbook or task gold.
+    mkdir -p /workspace /staging /logs/agent /logs/verifier /logs/artifacts \
+        /opt/chi-bench/tasks /opt/chi-bench/worlds /opt/chi-bench-task-assets \
+        /tmp/chi-bench-runtime /srv/chi-bench/raw
+    ln -s /opt/chi-bench-venv /workspace/.venv
+    ln -s /opt/chi-bench-task-assets /opt/healthverse-task-assets
+    printf '%s\n' 'export PATH="/opt/chi-bench-venv/bin:$PATH"' > /etc/profile.d/chi-bench.sh
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH=/opt/chi-bench-venv/bin:$PATH
+    export PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+    export PYTHONDONTWRITEBYTECODE=1
+    export PYTHONUNBUFFERED=1
+    export CHI_BENCH_RUNTIME_DIR=/tmp/chi-bench-runtime
+    export CHI_BENCH_WORLDS_DIR=/opt/chi-bench/worlds
+    export CHI_BENCH_PAYER_MODE=agent
+    export CHI_BENCH_WORKSPACE_ROOT=/logs/artifacts/workspaces
+    export CHI_BENCH_RAW_ROOT=/srv/chi-bench/raw
+    export IS_SANDBOX=1
+
+%test
+    /opt/chi-bench-venv/bin/python -c 'import chi_bench; import healthverse.verifier.task_runtime'
+    /usr/local/bin/claude --version
+    mkdir -p /tmp/codex-test
+    CODEX_HOME=/tmp/codex-test /usr/bin/codex --version | grep -q '0.145.0'
+
+%runscript
+    exec /usr/local/bin/entrypoint.sh "$@"

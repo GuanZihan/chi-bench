@@ -89,7 +89,7 @@ Run a Harbor trial (or set of trials) from an `ExperimentConfig`, optionally ove
 cb experiment run [-f <config.yaml>] [--dataset <path-or-id>]
                   [--agent <id>] [--model <id>] [-n <int>]
                   [--trials-dir <dir>]
-                  [-e docker|modal] [--modal-profile <name>]
+                  [-e docker|modal|apptainer] [--modal-profile <name>]
                   [--modal-sandbox-timeout-secs <int>]
                   [--modal-force-build | --no-modal-force-build]
 ```
@@ -104,12 +104,20 @@ cb experiment run [-f <config.yaml>] [--dataset <path-or-id>]
 | `--model` | — | Model identifier in the agent's namespace. |
 | `-n` | `1` | Concurrent trials. |
 | `--trials-dir` | — | Harbor trials output directory; falls back to the config's `paths.trials_dir`. |
-| `-e / --environment` | `docker` | Either `docker` (local single-image) or `modal` (remote sandbox parallelism). The runner auto-terminates its own sandboxes on exit. |
+| `-e / --environment` | `docker` | `docker` (local image), `modal` (remote sandbox), or `apptainer` (shared SIF, one trial per node). |
 | `--modal-profile` | `actava` | Modal profile from `~/.modal.toml`. Pass `''` to skip Modal preflight. |
 | `--modal-sandbox-timeout-secs` | `86400` | Per-sandbox lifetime cap. Matches YAML key `modal.sandbox_timeout_secs`. |
 | `--modal-force-build` | unset | Force Modal to rebuild the environment image. |
 
 **Agent-scoped environment (`agent_env`)**
+
+For Apptainer, see [the Rivanna guide](../containers/README.md). YAML keys
+`apptainer.image`, `apptainer.data_dir`, `apptainer.runtime_root`,
+`apptainer.keep_runtime`, and `apptainer.startup_timeout_sec` configure the backend.
+Use `concurrency: 1`; the fixed MCP ports are guarded by a node-local lock.
+This backend is currently scoped to `cb experiment run`, not `cb submission`.
+When using `-f`, edit model/dataset/output fields in the YAML; only the explicit
+environment and Modal overrides are applied by the current runner.
 
 A flat `ExperimentConfig` YAML, or a row in a matrix expanded by `scripts/_emit_run_table_commands.py`, may include an `agent_env: {KEY: VALUE}` mapping. The runner appends these entries after automatically forwarded provider keys and agent defaults, so the last value for a duplicate key wins in the agent process. The mapping does not mutate the simulation server or judge environment; for example, an agent-scoped Anthropic override leaves the native `ANTHROPIC_API_KEY` available to the judge. `scripts/run_table.sh` wraps the emitter only for the named `table1`–`table5` configs; invoke the emitter directly for a custom matrix.
 

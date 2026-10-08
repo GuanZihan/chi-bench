@@ -332,10 +332,12 @@ def serve(
         # Brief wait for port to be released by the OS
         time.sleep(0.3)
 
-    try:
-        _kill_port(port)
-    except FileNotFoundError:
-        pass  # lsof not available (e.g., slim Docker image)
+    # Shared-network HPC trials must never terminate another trial's listener.
+    if os.environ.get("CHI_BENCH_SKIP_PORT_CLEANUP") != "1":
+        try:
+            _kill_port(port)
+        except FileNotFoundError:
+            pass  # lsof not available (e.g., slim Docker image)
 
     os.environ.setdefault("CHI_BENCH_PAYER_MODE", "agent")
 
@@ -495,10 +497,10 @@ def experiment_run(
         "-e",
         "--environment",
         help=(
-            "Execution environment: 'docker' (default) or 'modal'. "
-            "The runner auto-terminates its own sandboxes on exit; residual "
-            "orphans can still be listed with `modal container list` and "
-            "stopped with `modal container stop <id>`."
+            "Execution environment: 'docker' (default), 'modal', or 'apptainer'. "
+            "The runner terminates environments it creates on normal exit. "
+            "Apptainer uses fixed localhost ports and therefore supports one "
+            "concurrent trial per node."
         ),
     ),
     modal_profile: str | None = typer.Option(
@@ -521,9 +523,9 @@ def experiment_run(
     """Run an experiment (Harbor trial or job)."""
     from chi_bench.experiment.runner import run_experiment
 
-    if environment is not None and environment not in {"docker", "modal"}:
+    if environment is not None and environment not in {"docker", "modal", "apptainer"}:
         raise typer.BadParameter(
-            f"--environment must be 'docker' or 'modal' (got {environment!r})."
+            f"--environment must be 'docker', 'modal', or 'apptainer' (got {environment!r})."
         )
 
     run_experiment(

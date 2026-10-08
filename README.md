@@ -48,6 +48,11 @@ $\chi$-Bench evaluates AI agents on end-to-end U.S. healthcare workflows across 
 
 **Prereqs:** Python 3.12+, Docker, [uv](https://github.com/astral-sh/uv).
 
+**Rivanna / Apptainer:** Docker is not required for the new local HPC path.
+Use the [SIF setup and run guide](containers/README.md) instead of the Docker
+build step below. It supports `cb experiment run --environment apptainer`,
+with one trial per node and the original verifier; no fault injection is enabled.
+
 **1. Clone and install.**
 
 ```bash

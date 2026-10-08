@@ -1,0 +1,14 @@
+# One control task; choose an accessible agent model before running.
+dataset: data/prior_auth_um/tasks/pa_t008_t008_o002_p01_mdreview_payer
+environment: apptainer
+agent: codex
+model: openai/gpt-5.5
+concurrency: 1
+n_attempts: 1
+env_file: .env
+trials_dir: logs/experiments/apptainer-control
+apptainer:
+  image: containers/chi-bench.sif
+  data_dir: data
+  keep_runtime: false
+  startup_timeout_sec: 600

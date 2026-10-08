@@ -1,0 +1,12 @@
+{
+  "task": "pa_t008_t008_o002_p01_mdreview_payer",
+  "llm_calls": 0,
+  "mcp_tools": {
+    "8020": 30,
+    "8100": 41,
+    "8200": 16
+  },
+  "pdf_render": "passed",
+  "runtime_checks": "passed",
+  "cleanup": "passed"
+}

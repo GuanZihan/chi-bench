@@ -8,7 +8,17 @@ from typing import Literal
 import yaml
 from pydantic import BaseModel, Field
 
-Environment = Literal["docker", "modal"]
+Environment = Literal["docker", "modal", "apptainer"]
+
+
+class ApptainerConfig(BaseModel):
+    """Shared SIF and per-trial writable state on an HPC node."""
+
+    image: str = "containers/chi-bench.sif"
+    data_dir: str = "data"
+    runtime_root: str | None = None
+    keep_runtime: bool = False
+    startup_timeout_sec: int = Field(default=600, ge=1)
 
 
 class ModalConfig(BaseModel):
@@ -64,8 +74,9 @@ class ExperimentConfig(BaseModel):
     registry_path: str | None = Field(default=None, description="Path to registry JSON")
     environment: Environment = Field(
         default="docker",
-        description="Execution environment (docker or modal).",
+        description="Execution environment (docker, modal, or apptainer).",
     )
+    apptainer: ApptainerConfig = Field(default_factory=ApptainerConfig)
     modal: ModalConfig = Field(default_factory=ModalConfig)
     timeout_multiplier: float | None = Field(
         default=None,

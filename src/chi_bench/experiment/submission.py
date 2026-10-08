@@ -28,7 +28,6 @@ import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from chi_bench.experiment.agents.registry import KNOWN_AGENTS
-from chi_bench.experiment.config import Environment
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +105,8 @@ class SubmissionMeta(BaseModel):
 class SubmissionRun(BaseModel):
     """Per-run knobs forwarded into ExperimentConfig for each domain slice."""
 
-    environment: Environment = Field(default="modal")
+    # Submission provenance/packaging remains on its original two backends.
+    environment: Literal["docker", "modal"] = Field(default="modal")
     n_attempts: int = Field(
         default=1,
         ge=1,

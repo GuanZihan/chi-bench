@@ -5,6 +5,12 @@ Each result has one config and one driver command. After trials complete,
 bootstrap 95% CIs (1,000 iterations, seed `0` — matches the paper). Override
 the resample count or seed with `--bootstrap-iters` / `--bootstrap-seed`.
 
+For Rivanna without Docker, use [the Apptainer guide](../containers/README.md).
+The SIF backend accepts individual `ExperimentConfig` files through
+`cb experiment run -e apptainer`, with `concurrency: 1`. The table driver below
+has not gained an Apptainer switch; do not pass its matrix YAML directly as an
+individual experiment. Task instructions and judging remain unchanged.
+
 ## Cost expectations
 
 The headline run (all 30 main-matrix cells) is **30 cells × 75 tasks × 3 trials = 6,750 trials**.

@@ -119,7 +119,7 @@ fi
 
 python -m chi_bench.bootstrap
 
-cb serve --host 0.0.0.0 --port 8023 --no-frontend \
+cb serve --host "${CHI_BENCH_BIND_HOST:-0.0.0.0}" --port 8023 --no-frontend \
     >"$LOG_DIR/chi-bench-server.log" 2>&1 &
 SERVE_PID=$!
 
@@ -129,8 +129,10 @@ trap 'kill $SERVE_PID 2>/dev/null || true' INT TERM
 # server startup. Fail fast if the server never comes up — otherwise
 # the agent's first MCP call surfaces as an opaque connection error.
 READY=0
-for _ in $(seq 1 60); do
-    if python -c "import urllib.request; urllib.request.urlopen('http://localhost:8023/health')" \
+STARTUP_ATTEMPTS="${CHI_BENCH_STARTUP_ATTEMPTS:-120}"
+for _ in $(seq 1 "$STARTUP_ATTEMPTS"); do
+    # Use explicit IPv4 because Rivanna may resolve localhost to IPv6 first.
+    if python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8023/health', timeout=5)" \
             >/dev/null 2>&1; then
         READY=1
         break
@@ -139,7 +141,7 @@ for _ in $(seq 1 60); do
 done
 
 if [ "$READY" -ne 1 ]; then
-    echo "entrypoint: chi-bench server did not respond on :8023/health within 60s" >&2
+    echo "entrypoint: chi-bench server did not respond on :8023/health within ${STARTUP_ATTEMPTS}s" >&2
     tail -n 50 "$LOG_DIR/chi-bench-server.log" >&2 2>/dev/null || true
     exit 69
 fi
@@ -157,7 +159,7 @@ fi
 wait_mcp() {
     port=$1
     name=$2
-    for _ in $(seq 1 60); do
+    for _ in $(seq 1 "$STARTUP_ATTEMPTS"); do
         if python - <<PY >/dev/null 2>&1
 import json, urllib.request
 body = json.dumps({
@@ -171,7 +173,7 @@ body = json.dumps({
     },
 }).encode()
 req = urllib.request.Request(
-    f"http://localhost:${port}/mcp",
+    f"http://127.0.0.1:${port}/mcp",
     data=body,
     headers={
         "Content-Type": "application/json",
@@ -187,7 +189,7 @@ PY
         fi
         sleep 1
     done
-    echo "entrypoint: $name MCP on :$port did not accept initialize within 60s" >&2
+    echo "entrypoint: $name MCP on :$port did not accept initialize within ${STARTUP_ATTEMPTS}s" >&2
     tail -n 50 "$LOG_DIR/chi-bench-server.log" >&2 2>/dev/null || true
     return 1
 }
